@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kusi Chat · MVP1</title>
+  <meta name="description" content="Kusi Chat: extensionista agrícola digital para pequeños productores del Perú. MVP1 de Despega CLEIN 2026.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-view="chat">
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">🌱</span>
+      <div>
+        <h1>Kusi Chat</h1>
+        <p>Extensionista agrícola digital · MVP1</p>
+      </div>
+    </div>
+    <p class="sim-note">Demostración: los agricultores, sus respuestas y la validación del técnico son <b>simulados [SU]</b>. Las reglas son <b>ilustrativas</b>.</p>
+    <nav class="viewtabs" aria-label="Vista">
+      <button data-v="chat" class="on">💬 Agricultor</button>
+      <button data-v="panel">📊 Panel del técnico <span id="badge" class="badge" hidden></span></button>
+    </nav>
+  </header>
+
+  <main class="layout">
+    <section id="pane-chat" class="pane" aria-label="Chat del agricultor">
+      <div class="phone">
+        <div class="phone-head">
+          <span class="avatar" aria-hidden="true">🌱</span>
+          <div><b>Kusi</b><small>Tu ayudante para la chacra</small></div>
+          <button id="restart" class="mini" title="Empezar de nuevo">↺ Empezar</button>
+        </div>
+        <div id="messages" class="messages" aria-live="polite"></div>
+        <div id="chips" class="chips"></div>
+        <form id="freeform" class="freeform" autocomplete="off">
+          <input id="free" type="text" placeholder="O escribe aquí lo que te preocupa…" aria-label="Escribir un mensaje">
+          <button type="submit" aria-label="Enviar">➤</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="pane-panel" class="pane" aria-label="Panel del técnico o del Estado">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Panel del técnico o del Estado</h2>
+          <p>Qué zonas tienen consejos calibrados, de dónde sale cada consejo y qué casos necesitan a un técnico.</p>
+        </div>
+        <nav class="subtabs" id="subtabs" aria-label="Secciones del panel"></nav>
+        <div id="panel-body" class="panel-body"></div>
+      </div>
+    </section>
+  </main>
+
+  <noscript>Esta demostración necesita JavaScript.</noscript>
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
