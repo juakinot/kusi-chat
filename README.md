@@ -25,7 +25,7 @@ Abre `index.html` en el navegador (o el link de GitHub Pages). No necesita insta
 |---|---|
 | Motor de reglas y cálculo de la etapa | Agricultores y sus respuestas |
 | Pronóstico de Open-Meteo (si hay conexión; si no, usa un ejemplo marcado) | Validación del técnico |
-| 5 reglas respaldadas por el manual del INIA (2020) con página citada: levante de surcos, primer y segundo aporque, tiempo de cosecha y curado |
+| 4 reglas respaldadas por el manual del INIA (2020) con página citada: levante de surcos, primer y segundo aporque, y tiempo de cosecha con curado (otras 4 son parciales) |
 | Registro de trazabilidad por consejo | **Umbrales de alerta (helada ≤ 2 °C, lluvia ≥ 20 mm, humedad ≥ 80 %) y las reglas marcadas Parcial o Ilustrativa [SU]** |
 | Ajuste de zona al acumular respuestas | Número mínimo de respuestas (N = 5) y tamaño del ajuste (3 días) |
 | Derivación de casos | Voz del audio (síntesis del navegador) |
