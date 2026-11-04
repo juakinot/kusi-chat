@@ -16,12 +16,15 @@ assert.strictEqual(regla(70, 'rancha'), 'R-02');
 assert.strictEqual(regla(70, 'fuerte'), 'R-03');
 assert.strictEqual(regla(160, 'fuerte'), 'R-04');
 assert.strictEqual(regla(160, 'tranquilo'), 'R-08');
-assert.strictEqual(regla(40, 'tranquilo'), 'R-05');
-assert.strictEqual(regla(70, 'seco'), 'R-06');
+assert.strictEqual(regla(45, 'tranquilo'), 'R-13');
+assert.strictEqual(regla(65, 'tranquilo'), 'R-05');
+assert.strictEqual(regla(85, 'tranquilo'), 'R-14');
+assert.strictEqual(E.RULES.filter(r => r.estado === 'respaldada').length >= 4, true);
+assert.strictEqual(regla(75, 'seco'), 'R-06');
 assert.strictEqual(regla(130, 'tranquilo'), 'R-07');
 assert.strictEqual(regla(10, 'tranquilo'), 'R-09');
 assert.strictEqual(regla(10, 'helada'), 'R-01');
-assert.strictEqual(regla(30, 'tranquilo'), 'R-05');
+assert.strictEqual(regla(30, 'tranquilo'), 'R-12');
 // Toda combinación etapa × escenario produce un consejo con fuente
 ['tranquilo', 'helada', 'rancha', 'fuerte', 'seco'].forEach(esc => {
   for (let d = 0; d <= 200; d += 5) {

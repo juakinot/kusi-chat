@@ -4,13 +4,15 @@
 (function (root) {
   'use strict';
 
-  var FUENTE_REGLA = 'Regla ilustrativa [SU]. Fuente técnica por validar: ficha INIA/MIDAGRI del cultivo de papa.';
+  var FUENTE_REGLA = 'Regla ilustrativa [SU]. Sin respaldo en el manual del INIA; por validar con un técnico.';
+  var INIA = 'INIA (2020), Manual técnico: Manejo integrado del cultivo de papa';
 
   /* Zonas piloto: cultivo + rango de altitud + provincia (coordenadas aproximadas para el pronóstico). */
   var ZONES = [
     { id: 'huancayo', nombre: 'Valle del Mantaro', lugar: 'Huancayo, Junín', alt: '3 200–3 500 m', lat: -12.07, lon: -75.21 },
     { id: 'jauja', nombre: 'Valle de Jauja', lugar: 'Jauja, Junín', alt: '3 300–3 600 m', lat: -11.78, lon: -75.50 },
-    { id: 'junin', nombre: 'Meseta de Junín', lugar: 'Junín, Junín', alt: '3 900–4 200 m', lat: -11.16, lon: -75.99 }
+    { id: 'junin', nombre: 'Meseta de Junín', lugar: 'Junín, Junín', alt: '3 900–4 200 m', lat: -11.16, lon: -75.99 },
+    { id: 'puno', nombre: 'Altiplano de Puno', lugar: 'Puno', alt: '3 800–4 000 m', lat: -15.84, lon: -70.02 }
   ];
 
   /* Etapas de la papa (días desde la siembra de referencia). Valores ilustrativos [SU]. */
@@ -79,35 +81,42 @@
     return n[d.getDay()];
   };
 
+  /* estado: 'respaldada' = lo central de la regla sale del manual INIA (con página);
+   *         'parcial'    = el manual respalda una parte; el umbral o la acción es nuestra [SU];
+   *         'ilustrativa'= sin respaldo en el manual; solo ejemplo para la demo. */
   var RULES = [
-    { id: 'R-01', nombre: 'Aviso de helada', prioridad: 100,
+    { id: 'R-01', nombre: 'Aviso de helada', prioridad: 100, estado: 'parcial',
+      fuente: INIA + ', p. 13: temperaturas bajo 5 °C dañan el follaje. El umbral de alerta (≤ 2 °C) y las medidas de abrigo no están en el manual [SU]; validar con un técnico.',
       etapas: ['emergencia', 'vegetativo', 'floracion', 'llenado'],
       umbral: 'Temperatura mínima pronosticada ≤ 2 °C en los próximos 3 días',
       cond: function (c) { return c.cl.minT <= 2; },
       datos: function (c) { return 'Mínima de ' + T(c.cl.minT) + ' °C el ' + c.cl.diaMin; },
       mensaje: function (c) {
-        return 'Se espera mucho frío el ' + dia(c.cl.diaMin) + ' (' + T(c.cl.minT) + ' °C). Una helada puede quemar las hojas. ' +
+        return 'Se espera mucho frío el ' + dia(c.cl.diaMin) + ' (' + T(c.cl.minT) + ' °C). Una helada puede dañar las hojas. ' +
           'Riega ligero la tarde anterior y, si puedes, cubre las plantas pequeñas con paja.';
       } },
-    { id: 'R-02', nombre: 'Riesgo de rancha', prioridad: 90,
+    { id: 'R-02', nombre: 'Riesgo de enfermedades de las hojas', prioridad: 90, estado: 'parcial',
+      fuente: INIA + ', p. 30: la lluvia nocturna y la humedad relativa alta favorecen las enfermedades de las hojas, y se recomienda control preventivo. El manual no menciona la rancha. Los umbrales son nuestros [SU]; el producto y la dosis los define un técnico.',
       etapas: ['vegetativo', 'floracion', 'llenado'],
       umbral: 'Humedad media ≥ 80 %, lluvia en ≥ 2 de los próximos 3 días y temperatura máxima media entre 8 y 24 °C',
       cond: function (c) { return c.cl.hr >= 80 && c.cl.diasLluvia >= 2 && c.cl.tmax >= 8 && c.cl.tmax <= 24; },
       datos: function (c) { return 'Humedad media ' + Math.round(c.cl.hr) + ' %, ' + c.cl.diasLluvia + ' de 3 días con lluvia, máxima media ' + T(c.cl.tmax) + ' °C'; },
       mensaje: function () {
-        return 'Vienen días húmedos y con lluvia: es cuando aparece la rancha (manchas oscuras en las hojas). ' +
-          'Revisa tus plantas hoy y mañana. Si ves manchas, avísame o consulta a un técnico antes de echar cualquier producto.';
+        return 'Vienen días húmedos y con lluvia, que favorecen las enfermedades de las hojas (manchas). ' +
+          'Revisa tus plantas hoy y mañana. Si ves manchas, consulta a un técnico antes de echar cualquier producto: él te dice cuál y cuánto.';
       } },
-    { id: 'R-03', nombre: 'Aviso de lluvia fuerte', prioridad: 80,
+    { id: 'R-03', nombre: 'Aviso de lluvia fuerte', prioridad: 80, estado: 'parcial',
+      fuente: INIA + ', pp. 13, 25 y 26: el exceso de agua daña las hojas y los surcos sirven para sacar el agua de lluvia. El umbral de 20 mm es nuestro [SU].',
       etapas: ['vegetativo', 'floracion', 'llenado', 'maduracion'],
       umbral: 'Lluvia pronosticada ≥ 20 mm en un día dentro de los próximos 3 días',
       cond: function (c) { return c.cl.maxLluvia >= 20; },
       datos: function (c) { return 'Lluvia de ' + T(c.cl.maxLluvia) + ' mm el ' + c.cl.diaLluvia; },
       mensaje: function (c) {
         return 'Se espera lluvia fuerte el ' + dia(c.cl.diaLluvia) + ' (' + T(c.cl.maxLluvia) + ' mm). ' +
-          'Abre zanjas o salidas en tus surcos para que el agua no se quede en el terreno: el agua parada pudre las papas.';
+          'Revisa que tus surcos estén abiertos y tengan salida para que el agua no se quede en el terreno: el agua parada daña las plantas.';
       } },
-    { id: 'R-04', nombre: 'Cosecha con lluvia cerca', prioridad: 85,
+    { id: 'R-04', nombre: 'Cosecha con lluvia cerca', prioridad: 85, estado: 'ilustrativa',
+      fuente: FUENTE_REGLA + ' El manual (p. 30) solo dice que el momento de cosecha depende del clima.',
       etapas: ['cosecha'],
       umbral: 'Lluvia acumulada ≥ 5 mm en los próximos 2 días',
       cond: function (c) { return c.cl.lluvia2d >= 5; },
@@ -116,42 +125,65 @@
         return 'Tu papa ya está lista, pero viene lluvia en los próximos 2 días. Si puedes, cosecha hoy; ' +
           'si no, espera un día seco. Cosechar con el terreno muy mojado maltrata las papas.';
       } },
-    { id: 'R-05', nombre: 'Momento del aporque', prioridad: 60,
-      etapas: ['vegetativo'],
-      umbral: 'Entre el día 30 y el 55 desde la siembra (ajustado a la zona)',
-      cond: function (c) { return c.eff >= 30 && c.eff <= 55; },
+    { id: 'R-05', nombre: 'Primer aporque', prioridad: 60, estado: 'respaldada',
+      fuente: INIA + ', p. 26: primer aporque a los 60–70 días, con plantas de 15–20 cm, juntando 6–8 cm de tierra en la base. El manual es del altiplano de Puno; en otras zonas el momento puede variar.',
+      etapas: ['vegetativo', 'floracion'],
+      umbral: 'Entre el día 60 y el 70 desde la siembra (ajustado a la zona)',
+      cond: function (c) { return c.eff >= 60 && c.eff <= 70; },
       datos: function (c) { return 'Día ' + c.eff + ' ajustado a la zona'; },
       mensaje: function () {
-        return 'Es buen momento para el aporque: arrimar tierra al pie de cada planta. ' +
-          'Hazlo con el suelo húmedo pero sin encharcar.';
+        return 'Es momento del primer aporque: junta de 6 a 8 cm de tierra en la base de cada planta. ' +
+          'Hazlo cuando tus plantas midan de 15 a 20 cm. Aprovecha para sacar las malas hierbas.';
       } },
-    { id: 'R-06', nombre: 'Falta de agua', prioridad: 55,
+    { id: 'R-14', nombre: 'Segundo aporque', prioridad: 60, estado: 'respaldada',
+      fuente: INIA + ', p. 26: segundo aporque a los 20–25 días del primero, o con plantas de 45–50 cm, para proteger raíces, estolones y tubérculos.',
+      etapas: ['floracion', 'llenado'],
+      umbral: 'Entre el día 80 y el 95 desde la siembra (ajustado a la zona)',
+      cond: function (c) { return c.eff >= 80 && c.eff <= 95; },
+      datos: function (c) { return 'Día ' + c.eff + ' ajustado a la zona'; },
+      mensaje: function () {
+        return 'Toca el segundo aporque, unos 20 a 25 días después del primero o cuando tus plantas midan de 45 a 50 cm. ' +
+          'Sube otra capa de tierra al camellón y profundiza el surco: así proteges las raíces y las papitas.';
+      } },
+    { id: 'R-13', nombre: 'Levante de surcos', prioridad: 58, estado: 'respaldada',
+      fuente: INIA + ', p. 25: levante de surcos a los 45 días de la siembra, que favorece el drenaje.',
+      etapas: ['vegetativo'],
+      umbral: 'Entre el día 40 y el 50 desde la siembra (ajustado a la zona)',
+      cond: function (c) { return c.eff >= 40 && c.eff <= 50; },
+      datos: function (c) { return 'Día ' + c.eff + ' ajustado a la zona'; },
+      mensaje: function () {
+        return 'Ya es tiempo de levantar los surcos (más o menos a los 45 días de sembrar). Esto ayuda a que el agua de lluvia salga y no se quede en el terreno.';
+      } },
+    { id: 'R-06', nombre: 'Falta de agua', prioridad: 55, estado: 'ilustrativa',
+      fuente: FUENTE_REGLA + ' El manual no trae requerimientos de agua por etapa.',
       etapas: ['vegetativo', 'floracion', 'llenado'],
       umbral: 'Lluvia acumulada ≤ 1 mm en los próximos 5 días',
       cond: function (c) { return c.cl.lluvia5d <= 1; },
       datos: function (c) { return 'Lluvia acumulada de ' + T(c.cl.lluvia5d) + ' mm en 5 días'; },
       mensaje: function () {
-        return 'No se esperan lluvias en los próximos días. La papa necesita humedad pareja para que las papitas engorden. ' +
-          'Revisa el suelo: si a un dedo de profundidad está seco, riega temprano en la mañana o al caer la tarde.';
+        return 'No se esperan lluvias en los próximos días. Revisa el suelo: si a un dedo de profundidad está seco, ' +
+          'considera regar temprano en la mañana o al caer la tarde. Consulta a un técnico cuánto regar.';
       } },
-    { id: 'R-07', nombre: 'Preparar la cosecha', prioridad: 40,
+    { id: 'R-07', nombre: 'Preparar la cosecha', prioridad: 40, estado: 'parcial',
+      fuente: INIA + ', p. 30: la papa está lista cuando la cáscara ya no se desprende al frotarla con los dedos. El aviso previo a esa etapa es nuestro [SU].',
       etapas: ['maduracion'],
       umbral: 'Etapa de maduración',
       cond: function () { return true; },
       datos: function (c) { return 'Etapa de maduración, día ' + c.eff; },
       mensaje: function () {
-        return 'Tus plantas se preparan para la cosecha. Deja de regar. Cuando las hojas se amarillen, frota una papa con el pulgar: ' +
-          'si la cáscara ya no se pela fácil, está lista.';
+        return 'Tus plantas se preparan para la cosecha. Prueba frotando una papa con el dedo: si la cáscara ya no se pela, está lista.';
       } },
-    { id: 'R-08', nombre: 'Tiempo de cosecha', prioridad: 45,
+    { id: 'R-08', nombre: 'Tiempo de cosecha', prioridad: 45, estado: 'respaldada',
+      fuente: INIA + ', pp. 30–31: cosechar cuando la cáscara no se desprende al frotar; después, curado de 15 a 20 días en un ambiente protegido para cicatrizar heridas y detectar pudriciones.',
       etapas: ['cosecha'],
       umbral: 'Etapa de cosecha',
       cond: function () { return true; },
       datos: function (c) { return 'Etapa de cosecha, día ' + c.eff; },
       mensaje: function () {
-        return 'Es tiempo de cosechar. Elige un día seco, saca las papas con cuidado para no golpearlas y déjalas reposar a la sombra antes de guardarlas.';
+        return 'Es tiempo de cosechar si, al frotar una papa con el dedo, la cáscara ya no se pela. ' +
+          'Después de sacarlas, déjalas curar de 15 a 20 días en un lugar protegido: así cicatrizan las heridas y se ven las que se pudren.';
       } },
-    { id: 'R-09', nombre: 'Revisar la brotación', prioridad: 20,
+    { id: 'R-09', nombre: 'Revisar la brotación', prioridad: 20, estado: 'ilustrativa', fuente: FUENTE_REGLA,
       etapas: ['emergencia'],
       umbral: 'Etapa de emergencia',
       cond: function () { return true; },
@@ -159,23 +191,23 @@
       mensaje: function () {
         return 'Tu papa está saliendo. Revisa que las plantas salgan parejas. Si ves muchos huecos sin brotar, avísame.';
       } },
-    { id: 'R-10', nombre: 'Humedad pareja en floración', prioridad: 20,
+    { id: 'R-10', nombre: 'Humedad pareja en floración', prioridad: 20, estado: 'ilustrativa', fuente: FUENTE_REGLA,
       etapas: ['floracion'],
       umbral: 'Etapa de floración',
       cond: function () { return true; },
       datos: function (c) { return 'Etapa de floración, día ' + c.eff; },
       mensaje: function () {
-        return 'Tu papa está floreando y formando papitas. Mantén la humedad del terreno pareja y revisa las hojas por si aparecen manchas.';
+        return 'Tu papa está floreando y formando papitas. Revisa el terreno y las hojas por si aparecen manchas. Si ves algo raro, cuéntame.';
       } },
-    { id: 'R-11', nombre: 'Cuidar el engorde', prioridad: 20,
+    { id: 'R-11', nombre: 'Cuidar el engorde', prioridad: 20, estado: 'ilustrativa', fuente: FUENTE_REGLA,
       etapas: ['llenado'],
       umbral: 'Etapa de engorde',
       cond: function () { return true; },
       datos: function (c) { return 'Etapa de engorde, día ' + c.eff; },
       mensaje: function () {
-        return 'Tus papitas están engordando. Evita que el terreno se seque del todo o que se encharque.';
+        return 'Tus papitas están engordando. Evita que el terreno se encharque y revisa las hojas por si aparecen manchas.';
       } },
-    { id: 'R-12', nombre: 'Seguimiento del crecimiento', prioridad: 10,
+    { id: 'R-12', nombre: 'Seguimiento del crecimiento', prioridad: 10, estado: 'ilustrativa', fuente: FUENTE_REGLA,
       etapas: ['vegetativo'],
       umbral: 'Etapa de crecimiento',
       cond: function () { return true; },
@@ -195,7 +227,7 @@
     }).sort(function (a, b) { return b.prioridad - a.prioridad; });
     var r = candidatas[0];
     return {
-      regla: { id: r.id, nombre: r.nombre, umbral: r.umbral, fuente: FUENTE_REGLA },
+      regla: { id: r.id, nombre: r.nombre, umbral: r.umbral, fuente: r.fuente || FUENTE_REGLA, estado: r.estado || 'ilustrativa' },
       etapa: e.etapa, diasEfectivos: e.diasEfectivos,
       mensaje: r.mensaje(ctx),
       datos: r.datos(ctx) + ' · ' + das + ' días desde la siembra' + (offset ? ' (' + e.diasEfectivos + ' con el ajuste de la zona)' : ''),
@@ -268,7 +300,7 @@
   }
 
   var api = {
-    ZONES: ZONES, STAGES: STAGES, RULES: RULES, QUESTIONS: QUESTIONS, FUENTE_REGLA: FUENTE_REGLA,
+    ZONES: ZONES, STAGES: STAGES, RULES: RULES, QUESTIONS: QUESTIONS, FUENTE_REGLA: FUENTE_REGLA, INIA: INIA,
     PASO_AJUSTE: PASO_AJUSTE, UMBRAL_CONTRADICCION: UMBRAL_CONTRADICCION, NIVEL_TEXTO: NIVEL_TEXTO,
     etapaPara: etapaPara, preguntaPara: preguntaPara, resumenClima: resumenClima, evaluar: evaluar,
     nuevaZona: nuevaZona, nivelZona: nivelZona, registrarRespuesta: registrarRespuesta, validarZona: validarZona,

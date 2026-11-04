@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   var E = window.KusiEngine;
-  var LS = 'kusi-chat-mvp1-v1';
+  var LS = 'kusi-chat-mvp1-v2';
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]; }); };
   var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
@@ -14,7 +14,8 @@
   var SIMS = {
     huancayo: [18, 35, 48, 60, 72, 85, 95, 110, 130, 155],
     jauja: [22, 40, 58, 66, 80, 98, 125, 140],
-    junin: [15, 30, 45, 62, 88, 105]
+    junin: [15, 30, 45, 62, 88, 105],
+    puno: [20, 38, 52, 64, 78, 100, 128, 150]
   };
 
   /* ---------- Estado ---------- */
@@ -26,7 +27,8 @@
         validada: { por: 'Técnico (simulado)', en: haceDias(4), offset: 3 } }),
       jauja: E.nuevaZona({ offset: 3, respuestas: 11,
         ajustes: [{ cuando: haceDias(2), delta: 3, n: 5, tarde: 4, temprano: 0, pregunta: 'q2' }] }),
-      junin: E.nuevaZona({ respuestas: 2, cal: { n: 2, tarde: 1, temprano: 0 } })
+      junin: E.nuevaZona({ respuestas: 2, cal: { n: 2, tarde: 1, temprano: 0 } }),
+      puno: E.nuevaZona({ respuestas: 0 })
     };
     return { zones: z, N: 5, clima: 'auto', farmer: null, consejos: [], casos: [], log: [
       { cuando: haceDias(6), zona: 'huancayo', texto: 'Ajuste de zona +3 días (datos simulados [SU])' },
@@ -294,6 +296,17 @@
     runId += 1; var id = runId; onFree = null;
     msgs.innerHTML = ''; chipsBox.innerHTML = '';
     return botTyping('<b>¡Hola! Soy Kusi</b> 🌱, tu ayudante para la chacra. Te haré <b>3 preguntas cortas</b>. Solo toca los botones.', 450)
+      .then(function () {
+        return botTyping('<small>Para darte consejos, guardo <b>tu zona, tu cultivo y tus respuestas</b>. Solo los uso para ayudarte y para mejorar los consejos de tu zona (Ley 29733). Si sigues, aceptas.</small>', 500);
+      })
+      .then(function () {
+        return (function consentimiento() {
+          return pick([{ label: '✅ Acepto, continuar', value: 'si' }, { label: 'No acepto', value: 'no', cls: 'ghost' }]).then(function (v) {
+            if (v === 'si') return;
+            return botTyping('Entiendo. Sin tu permiso no guardo datos. Si cambias de idea, toca el botón.').then(consentimiento);
+          });
+        })();
+      })
       .then(function () { return registro(id); });
   }
 
@@ -306,7 +319,7 @@
   $('#restart').onclick = function () { flow(); };
 
   /* ---------- Panel ---------- */
-  var SUBS = [['zonas', 'Zonas'], ['consejos', 'Consejos y trazabilidad'], ['casos', 'Casos derivados'], ['reglas', 'Reglas'], ['demo', 'Demostración']];
+  var SUBS = [['zonas', 'Zonas'], ['resumen', 'Resumen para el Estado'], ['consejos', 'Consejos y trazabilidad'], ['casos', 'Casos derivados'], ['reglas', 'Reglas'], ['demo', 'Demostración']];
   function agricultoresEn(zid) { return SIMS[zid].length + (S.farmer && S.farmer.zonaId === zid ? 1 : 0); }
   function pendientes() { return S.casos.filter(function (c) { return c.estado === 'Pendiente'; }).length; }
 
@@ -320,7 +333,7 @@
     });
     var badge = $('#badge'); var p = pendientes(); badge.hidden = !p; badge.textContent = p;
     var body = $('#panel-body');
-    ({ zonas: vZonas, consejos: vConsejos, casos: vCasos, reglas: vReglas, demo: vDemo })[view.sub](body);
+    ({ zonas: vZonas, resumen: vResumen, consejos: vConsejos, casos: vCasos, reglas: vReglas, demo: vDemo })[view.sub](body);
   }
 
   function vZonas(body) {
@@ -330,7 +343,7 @@
       html += '<article class="zcard"><header><div><h3>' + esc(zi.nombre) + '</h3><p class="muted">' + esc(zi.lugar) + ' · ' + zi.alt + ' · papa</p></div>' +
         '<span class="lvl lvl' + n + '">Nivel ' + n + ' · ' + E.NIVEL_TEXTO[n] + '</span></header>' +
         '<div class="kv"><div><b>' + agricultoresEn(zi.id) + '</b><span>agricultores</span></div><div><b>' + z.respuestas + '</b><span>respuestas</span></div><div><b>' + signo(z.offset) + '</b><span>días de desfase</span></div></div>' +
-        '<div><div class="bar" aria-hidden="true"><i style="width:' + pct + '%"></i></div><p class="muted">Muestra hacia el próximo ajuste: ' + z.cal.n + ' de ' + S.N + ' respuestas</p></div>' +
+        '<div><div class="bar" aria-hidden="true"><i style="width:' + pct + '%"></i></div><p class="muted">Muestra hacia el próximo ajuste: ' + z.cal.n + ' de ' + S.N + ' respuestas' + contradiccion(z) + '</p></div>' +
         '<div class="acts"><button class="btn" data-sim="' + zi.id + '">Simular 6 respuestas que contradicen la regla</button>' +
         '<button class="btn primary" data-val="' + zi.id + '"' + (n !== 2 ? ' disabled' : '') + ' title="' + (n === 3 ? 'Ya está validada' : n === 1 ? 'Primero la zona necesita un ajuste por respuestas' : 'Simula la validación del técnico') + '">' + (n === 3 ? '✔ Validada' : 'Validar zona (técnico simulado)') + '</button></div>' +
         '<details><summary>Historial de ajustes y actividad</summary>' + historial(zi.id) + '</details>' +
@@ -339,6 +352,11 @@
     body.innerHTML = html + '</div>';
     body.querySelectorAll('[data-sim]').forEach(function (b) { b.onclick = function () { simular(b.getAttribute('data-sim')); }; });
     body.querySelectorAll('[data-val]').forEach(function (b) { b.onclick = function () { validar(b.getAttribute('data-val')); }; });
+  }
+  function contradiccion(z) {
+    if (!z.cal.n) return '';
+    var c = z.cal.tarde + z.cal.temprano, pc = Math.round(100 * c / z.cal.n);
+    return '. Contradicen la regla: ' + c + ' de ' + z.cal.n + ' (' + pc + ' %; se ajusta con ≥ ' + Math.round(100 * E.UMBRAL_CONTRADICCION) + ' % [SU])';
   }
   function historial(zid) {
     var z = S.zones[zid], out = '';
@@ -378,6 +396,38 @@
     save(); renderPanel();
   }
 
+  function vResumen(body) {
+    var zs = E.ZONES.map(function (z) { return E.nivelZona(S.zones[z.id]); });
+    var cal = zs.filter(function (n) { return n >= 2; }).length;
+    var agr = E.ZONES.reduce(function (a, z) { return a + agricultoresEn(z.id); }, 0);
+    var resp = E.ZONES.reduce(function (a, z) { return a + S.zones[z.id].respuestas; }, 0);
+    var k = [[E.ZONES.length, 'zonas piloto'], [cal + ' de ' + E.ZONES.length, 'zonas calibradas (nivel 2 o 3)'], [zs.filter(function (n) { return n === 3; }).length, 'zonas validadas por técnico'],
+      [agr, 'agricultores en la red (simulados)'], [resp, 'respuestas acumuladas'], [pendientes(), 'casos pendientes para el técnico']];
+    body.innerHTML = '<p class="note">Vista para quien decide: dónde ya hay consejos calibrados, dónde falta mandar un técnico y qué casos esperan atención. Cifras de la demostración, simuladas [SU].</p>' +
+      '<div class="grid">' + k.map(function (x) { return '<div class="zcard"><b style="font-size:28px">' + x[0] + '</b><span class="muted">' + x[1] + '</span></div>'; }).join('') + '</div>' +
+      '<h3>Dónde mandar un técnico primero</h3><ul>' + E.ZONES.map(function (z) {
+        var n = E.nivelZona(S.zones[z.id]);
+        return '<li><b>' + esc(z.nombre) + '</b>: ' + (n === 1 ? 'guía general, sin ajustes. Prioridad alta para calibrar.' : n === 2 ? 'ajustada con respuestas, falta la validación de un técnico.' : 'validada por un técnico.') + '</li>';
+      }).join('') + '</ul>' +
+      '<h3>Indicadores que mediríamos en el piloto</h3><div class="tablewrap"><table><thead><tr><th>Indicador</th><th>Cómo se mide</th><th>Meta</th></tr></thead><tbody>' +
+      '<tr><td>Adopción</td><td>% de agricultores registrados que vuelven a usar el servicio en las 2 semanas siguientes</td><td>A definir en el piloto</td></tr>' +
+      '<tr><td>Cumplimiento</td><td>% que reporta haber hecho la acción recomendada (pregunta de seguimiento)</td><td>A definir en el piloto</td></tr>' +
+      '<tr><td>Pérdidas evitadas</td><td>Comparar parcelas que siguieron los consejos con parcelas vecinas que no, en la misma zona y cultivo</td><td>A definir en el piloto</td></tr>' +
+      '<tr><td>Cobertura calibrada</td><td>% de zonas en nivel 2 o 3</td><td>A definir en el piloto</td></tr>' +
+      '<tr><td>Atención de casos</td><td>Tiempo entre que se deriva un caso y un técnico lo atiende</td><td>A definir en el piloto</td></tr></tbody></table></div>';
+  }
+
+  function csvCelda(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
+  function descargarCSV() {
+    var cab = ['registro', 'fecha', 'agricultor', 'zona', 'dias_desde_siembra', 'etapa', 'dias_con_ajuste', 'desfase_zona_dias', 'nivel_confianza', 'respuestas_que_respaldan_ajuste', 'regla', 'respaldo_de_la_regla', 'fuente', 'datos_usados', 'fuente_clima', 'validada_por', 'consejo'];
+    var filas = S.consejos.map(function (c) {
+      return [c.id, c.cuando, c.agricultor, zonaInfo(c.zona).nombre, c.das, c.etapa, c.diasEfectivos, c.offset, c.nivel, c.nResp, c.regla.id + ' ' + c.regla.nombre, c.regla.estado, c.regla.fuente, c.datos, c.clima.fuente, c.validadaPor || 'sin validar', c.mensaje].map(csvCelda).join(',');
+    });
+    var blob = new Blob(['\ufeff' + cab.join(',') + '\n' + filas.join('\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'kusi-chat-trazabilidad.csv';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+
   function vConsejos(body) {
     if (!S.consejos.length) { body.innerHTML = '<p class="empty">Todavía no hay consejos. Pídele uno a Kusi en la vista del agricultor y aparecerá aquí con su trazabilidad completa.</p>'; return; }
     var sel = S.consejos.filter(function (c) { return c.id === view.sel; })[0] || S.consejos[0];
@@ -386,9 +436,11 @@
       return '<tr class="click' + (c.id === sel.id ? ' sel' : '') + '" data-id="' + c.id + '"><td>' + c.id + '</td><td>' + fmt(c.cuando) + '</td><td>' + esc(zonaInfo(c.zona).nombre) + '</td><td>' + esc(c.etapa) + '</td><td>' + c.regla.id + '</td><td><span class="lvl lvl' + c.nivel + '">N' + c.nivel + '</span></td></tr>';
     }).join('');
     body.innerHTML = '<p class="note">Cada consejo guarda su regla de origen, los datos usados, el ajuste de zona, el nivel de confianza y quién lo validó. Toca una fila para ver el detalle.</p>' +
+      '<div class="formrow"><button class="btn primary" id="csv">⬇ Descargar registro de trazabilidad (CSV)</button></div>' +
       '<div class="tablewrap"><table><thead><tr><th>Registro</th><th>Fecha</th><th>Zona</th><th>Etapa</th><th>Regla</th><th>Nivel</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div class="detail"><h3 style="margin:0 0 8px">Trazabilidad del consejo ' + sel.id + '</h3><p style="margin:0 0 8px"><b>“' + esc(sel.mensaje) + '”</b></p>' + porQue(sel).replace(/<dl>/, '<dl>') + '</div>';
     body.querySelectorAll('tr[data-id]').forEach(function (tr) { tr.onclick = function () { view.sel = tr.getAttribute('data-id'); renderPanel(); }; });
+    $('#csv').onclick = descargarCSV;
   }
 
   function vCasos(body) {
@@ -403,10 +455,10 @@
 
   function vReglas(body) {
     var nombres = {}; E.STAGES.forEach(function (s) { nombres[s.id] = s.nombre; });
-    body.innerHTML = '<p class="note"><b>Estas reglas son ilustrativas [SU].</b> Los umbrales y las etapas deben reemplazarse por los de fichas técnicas del INIA o MIDAGRI antes de cualquier uso real. La IA no decide qué recomendar: cada consejo sale de una regla con fuente.</p>' +
-      '<div class="tablewrap"><table><thead><tr><th>Regla</th><th>Etapas</th><th>Se aplica si…</th><th>Prioridad</th><th>Estado</th></tr></thead><tbody>' +
+    body.innerHTML = '<p class="note"><b>Respaldo de las reglas.</b> Fuente usada: ' + esc(E.INIA) + ' (Arcos et al., INIA, 2020). Ese manual es del altiplano de Puno, no define etapas ni requerimientos de agua, y no menciona la rancha. Las reglas marcadas <i>Parcial</i> o <i>Ilustrativa</i> tienen umbrales o acciones nuestras [SU] y deben validarse con un técnico antes de un uso real. La IA no decide qué recomendar: cada consejo sale de una regla.</p>' +
+      '<div class="tablewrap"><table><thead><tr><th>Regla</th><th>Etapas</th><th>Se aplica si…</th><th>Prioridad</th><th>Respaldo y fuente</th></tr></thead><tbody>' +
       E.RULES.slice().sort(function (a, b) { return b.prioridad - a.prioridad; }).map(function (r) {
-        return '<tr><td><b>' + r.id + '</b> · ' + esc(r.nombre) + '</td><td>' + r.etapas.map(function (e) { return esc(nombres[e]); }).join(', ') + '</td><td>' + esc(r.umbral) + '</td><td>' + r.prioridad + '</td><td><span class="pill">Ilustrativa · por validar</span></td></tr>';
+        return '<tr><td><b>' + r.id + '</b> · ' + esc(r.nombre) + '</td><td>' + r.etapas.map(function (e) { return esc(nombres[e]); }).join(', ') + '</td><td>' + esc(r.umbral) + '</td><td>' + r.prioridad + '</td><td><span class="pill">' + ({ respaldada: 'Respaldada por el manual', parcial: 'Parcial', ilustrativa: 'Ilustrativa [SU]' })[r.estado] + '</span><br><small>' + esc(r.fuente) + '</small></td></tr>';
       }).join('') + '</tbody></table></div>' +
       '<details style="margin-top:12px"><summary>Etapas de la papa usadas (días desde la siembra de referencia)</summary><ul>' +
       E.STAGES.map(function (s) { return '<li>Día ' + s.desde + ' en adelante: ' + esc(s.nombre) + '</li>'; }).join('') + '</ul></details>';
@@ -415,13 +467,13 @@
   function vDemo(body) {
     body.innerHTML = '<p class="note">Controles para probar y presentar. Nada de esto aparece en la vista del agricultor.</p>' +
       '<div class="formrow"><label for="sel-clima"><b>Clima que usa el consejo:</b></label><select id="sel-clima">' +
-      [['auto', 'Real (Open-Meteo)'], ['tranquilo', 'Escenario: tranquilo'], ['helada', 'Escenario: helada'], ['rancha', 'Escenario: lluvia con humedad (rancha)'], ['fuerte', 'Escenario: lluvia fuerte'], ['seco', 'Escenario: seco']]
+      [['auto', 'Real (Open-Meteo)'], ['tranquilo', 'Escenario: tranquilo'], ['helada', 'Escenario: helada'], ['rancha', 'Escenario: lluvia con humedad (enfermedades de hojas)'], ['fuerte', 'Escenario: lluvia fuerte'], ['seco', 'Escenario: seco']]
         .map(function (o) { return '<option value="' + o[0] + '"' + (S.clima === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></div>' +
       '<div class="formrow"><label for="sel-n"><b>Respuestas mínimas para ajustar una zona (N) [SU]:</b></label><select id="sel-n">' +
       [3, 5, 8, 10].map(function (n) { return '<option' + (S.N === n ? ' selected' : '') + '>' + n + '</option>'; }).join('') + '</select></div>' +
       '<div class="formrow"><button class="btn danger" id="reset-all">Reiniciar la demostración (borra consejos y casos)</button></div>' +
-      '<details open><summary>Qué es real y qué es simulado</summary><table><thead><tr><th>Real</th><th>Simulado o ilustrativo [SU]</th></tr></thead><tbody><tr><td>Motor de reglas y cálculo de etapa<br>Pronóstico de Open-Meteo (si hay conexión)<br>Registro de trazabilidad de cada consejo<br>Ajuste de zona al acumular respuestas<br>Derivación de casos al técnico</td><td>Agricultores y sus respuestas<br>Validación del técnico<br>Reglas agronómicas y umbrales (por validar con INIA/MIDAGRI)<br>Voz del audio (síntesis del navegador)<br>Número mínimo de respuestas (N) y tamaño del ajuste (3 días)</td></tr></tbody></table></details>' +
-      '<details><summary>Qué falta para un piloto real</summary><ul><li>Reglas validadas con fichas técnicas y un agrónomo.</li><li>Canal real de WhatsApp (API de WhatsApp Business).</li><li>Base de datos central y acceso para técnicos.</li><li>Consentimiento explícito para guardar ubicación y datos del cultivo (Ley 29733).</li><li>Medir en el piloto: adopción, cumplimiento de consejos y pérdidas evitadas.</li></ul></details>';
+      '<details open><summary>Qué es real y qué es simulado</summary><table><thead><tr><th>Real</th><th>Simulado o ilustrativo [SU]</th></tr></thead><tbody><tr><td>Motor de reglas y cálculo de etapa<br>Pronóstico de Open-Meteo (si hay conexión)<br>Registro de trazabilidad de cada consejo<br>Ajuste de zona al acumular respuestas<br>Derivación de casos al técnico</td><td>Agricultores y sus respuestas<br>Validación del técnico<br>Umbrales de alerta y reglas sin respaldo en el manual INIA (marcadas en la pestaña Reglas)<br>Voz del audio (síntesis del navegador)<br>Número mínimo de respuestas (N) y tamaño del ajuste (3 días)</td></tr></tbody></table></details>' +
+      '<details><summary>Qué falta para un piloto real</summary><ul><li>Reglas validadas con un agrónomo y con fichas técnicas para cada zona (el manual del INIA es del altiplano de Puno).</li><li>Canal real de WhatsApp (API de WhatsApp Business).</li><li>Base de datos central y acceso para técnicos.</li><li>Consentimiento explícito para guardar ubicación y datos del cultivo (Ley 29733).</li><li>Medir en el piloto: adopción, cumplimiento de consejos y pérdidas evitadas.</li></ul></details>';
     $('#sel-clima').onchange = function (e) { S.clima = e.target.value; save(); };
     $('#sel-n').onchange = function (e) { S.N = parseInt(e.target.value, 10); save(); };
     $('#reset-all').onclick = function () { S = seed(); save(); view.sel = null; renderPanel(); flow(); };
